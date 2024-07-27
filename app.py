@@ -180,7 +180,13 @@ if 'page' not in st.session_state:
 if st.session_state.page == "home":
     st.title("Linear Algebra System Solver")
     st.write("Welcome to the Linear Algebra System Solver app.")
-    st.write(" This app helps you solve homogeneous and non homogeneous linear algebra systems.")
+    st.write()
+    st.write("""
+        This application allows you to solve linear algebra systems by reducing them to 
+        their Row Reduced Echelon Form (RREF) and expressing the solutions. You can visualize 
+        the solutions for both homogeneous and non-homogeneous systems.
+        """)
+    st.write()
     st.write("Click the button below to start solving!")
     if st.button("Next"):
         st.session_state.page = "input"
@@ -231,49 +237,26 @@ elif st.session_state.page == "elements":
     st.session_state.matrix = updated_matrix
 
     if st.button("Solve"):
-        # This function needs to solve the system and get the RREF of [A|b]
-        def solve_systems(matrix):
-            A = matrix[:, :-1]
-            b = matrix[:, -1]
-            rref_A = rref(A)
-            rref_A_b = np.hstack((rref_A, np.expand_dims(b, axis=1)))
-
-            particular_solution = np.linalg.lstsq(A, b, rcond=None)[0]
-            null_space = np.linalg.matrix_rank(A)
-            solution_description = express_variables(rref_A_b, zero_vector=False)
-
-            return null_space, particular_solution, True, rref_A_b, "\n".join(solution_description)
-
-
-        null_space, particular_solution, has_solution, rref_matrix, solution_description = solve_systems(
-            st.session_state.matrix)
-        st.session_state.null_space = null_space
-        st.session_state.particular_solution = particular_solution
-        st.session_state.has_solution = has_solution
-        st.session_state.rref_matrix = rref_matrix
-        st.session_state.solution_description = solution_description
         st.session_state.page = "solution"
 
 elif st.session_state.page == "solution":
     st.title("Solution and Visualization")
 
-    rref_matrix_A_b = st.session_state.rref_matrix
-    rref_matrix_A = rref(rref_matrix_A_b[:, :-1])
-    homogeneous_solution_A_0 = np.hstack((rref_matrix_A, np.zeros((rref_matrix_A.shape[0], 1))))
-
-    st.write("Reduced Row Echelon Form (RREF) of [A|b]:")
-    display_matrix(rref_matrix_A_b)
-
-    st.write("Reduced Row Echelon Form (RREF) of A:")
-    display_matrix(rref_matrix_A)
-
-    st.write("Homogeneous Solution [A|0]:")
-    display_matrix(homogeneous_solution_A_0)
-
-    st.write("Non-Homogeneous Solution [A|b]:")
-    st.write(st.session_state.solution_description)
-
-    st.write("Graph of the Solution:")
+    A_b = st.session_state.matrix
+    A = A_b[:, :-1]
+    b = A_b[:, -1]
+    rref_matrix_A_b = rref(A_b)
+    rref_matrix_A = rref(A)
+    st.subheader("RREF of [A | b]:")
+    st.write(rref_matrix_A_b)
+    st.subheader("Non-homogeneous solution [A | b]:")
+    non_homogeneous_sol = express_variables(rref_matrix_A_b)
+    st.write(non_homogeneous_sol)
+    st.subheader("RREF of A:")
+    st.write(rref_matrix_A)
+    st.subheader("Homogeneous solution [A | 0]:")
+    homogeneous_sol = express_variables(rref_matrix_A_b, True)
+    st.write(homogeneous_sol)
     fig = plot_solution(rref_matrix_A_b)
     if isinstance(fig, plt.Figure):
         st.pyplot(fig)
