@@ -5,7 +5,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import sympy as sp
 
 
-# Perform and display row reduction of the given matrix both augmented and not augmented
 def rref(A):
     """Compute the Reduced Row Echelon Form of matrix A."""
     A_sym = sp.Matrix(A)
@@ -14,13 +13,13 @@ def rref(A):
 
 
 def check_consistency(rref_matrix):
-    """Checks if the system represented by the RREF matrix is consistent."""
+    """Check if the system represented by the RREF matrix is consistent."""
     num_rows, num_vars = rref_matrix.shape
     return not (np.all(rref_matrix[-1, :-1] == 0) and rref_matrix[-1, -1] != 0)
 
 
 def express_variables(rref_matrix, zero_vector=False):
-    """Processes a row-reduced echelon form (RREF) matrix and expresses each basic variable in terms of free variables and constant terms."""
+    """Express each basic variable in terms of free variables and constants."""
     num_rows, num_vars = rref_matrix.shape
 
     if zero_vector:
@@ -34,10 +33,12 @@ def express_variables(rref_matrix, zero_vector=False):
                 pivot_columns.append(pivot_col)
 
         free_variables = [i for i in range(num_vars - 1) if i not in pivot_columns]
+
         expressions = {i: "" for i in range(num_vars - 1)}
 
         for row in range(num_rows):
             pivot_col = next((i for i in range(num_vars - 1) if rref_matrix[row, i] == 1), None)
+
             if pivot_col is not None:
                 expression = f"x{pivot_col + 1} = {rref_matrix[row, -1]}"
                 for col in range(num_vars - 1):
@@ -46,27 +47,29 @@ def express_variables(rref_matrix, zero_vector=False):
                         expression += f" {sign} {abs(rref_matrix[row, col])}*x{col + 1}"
                 expressions[pivot_col] = expression
 
-        description = []
+        result = []
         for i in range(num_vars - 1):
             if expressions[i]:
-                description.append(expressions[i])
-        for free_var in free_variables:
-            description.append(f"x{free_var + 1} is free")
-    else:
-        description = ["The system is inconsistent"]
+                result.append(expressions[i])
 
-    return description
+        for free_var in free_variables:
+            result.append(f"x{free_var + 1} is free")
+
+        return result
+    else:
+        return ["The system is inconsistent"]
 
 
 def plot_solution(rref_matrix):
+    """Plot solutions for both homogeneous (Ax = 0) and non-homogeneous (Ax = b) systems."""
     num_rows, num_cols = rref_matrix.shape
-    num_vars = num_cols - 1
+    num_vars = num_cols - 1  # Last column is for constants
 
     if num_vars < 2:
-        st.write("Cannot visualize systems with less than 2 variables.")
-        return
+        return "Cannot visualize systems with less than 2 variables."
 
     fig = plt.figure(figsize=(12, 6))
+
     if num_vars == 2:
         ax = fig.add_subplot(111)
         plot_2d(ax, rref_matrix)
@@ -74,14 +77,13 @@ def plot_solution(rref_matrix):
         ax = fig.add_subplot(111, projection='3d')
         plot_3d(ax, rref_matrix)
 
-    # Create custom legend
     from matplotlib.lines import Line2D
     custom_lines = [Line2D([0], [0], color='blue', lw=2),
                     Line2D([0], [0], color='red', lw=2),
                     Line2D([0], [0], color='green', marker='o', linestyle='None')]
     ax.legend(custom_lines, ['Ax = 0', 'Ax = b', 'Particular Solution'])
 
-    st.pyplot(fig)
+    return fig
 
 
 def plot_2d(ax, rref_matrix):
@@ -153,16 +155,17 @@ def plot_3d(ax, rref_matrix):
 def display_matrix(matrix):
     """Display the matrix in a readable format with improved spacing, centered alignment, and increased size."""
     st.write("Matrix Representation:")
-
     table_html = '''
     <div style="display: flex; justify-content: center;">
         <table border="1" style="border-collapse: collapse; text-align: center; font-size: 20px; padding: 10px;">
     '''
+
     for row in matrix:
         table_html += '<tr>'
         for elem in row:
             table_html += f'<td style="padding: 15px; text-align: center;">{elem:.2f}</td>'
         table_html += '</tr>'
+
     table_html += '</table></div>'
 
     st.markdown(table_html, unsafe_allow_html=True)
@@ -176,8 +179,8 @@ if 'page' not in st.session_state:
 
 if st.session_state.page == "home":
     st.title("Linear Algebra System Solver")
-    st.write(
-        "Welcome to the Linear Algebra System Solver app. This app helps you solve homogeneous and nonhomogeneous linear algebra systems.")
+    st.write("Welcome to the Linear Algebra System Solver app.")
+    st.write(" This app helps you solve homogeneous and non homogeneous linear algebra systems.")
     st.write("Click the button below to start solving!")
     if st.button("Next"):
         st.session_state.page = "input"
@@ -196,58 +199,84 @@ elif st.session_state.page == "input":
 
     st.write("Matrix representation:")
     matrix_repr = ""
-    for i in range(int(rows)):
-        row_repr = " ".join([f"[{i + 1},{j + 1}]" for j in range(int(cols))])
+    for i in range(rows):
+        row_repr = " ".join([f"[{i + 1},{j + 1}]" for j in range(cols)])
         matrix_repr += row_repr + "\n"
     st.text(matrix_repr)
 
-    st.write("Enter the values for the matrix:")
-    matrix = []
-    for i in range(int(rows)):
-        row = []
-        for j in range(int(cols)):
-            value = st.number_input(f"Value for [{i + 1},{j + 1}]:", key=f"matrix_{i}_{j}")
-            row.append(value)
-        matrix.append(row)
+    if st.button("Done"):
+        st.session_state.rows = rows
+        st.session_state.cols = cols
+        st.session_state.page = "elements"
 
-    st.session_state.matrix = matrix
+elif st.session_state.page == "elements":
+    st.title("Matrix Elements Input")
+    st.write(f"Enter the elements for a {int(st.session_state.rows)} x {int(st.session_state.cols)} matrix.")
 
-    if st.button("Submit"):
+    matrix = np.zeros((int(st.session_state.rows), int(st.session_state.cols)))
+    updated_matrix = matrix.copy()
+
+    cols = st.columns(int(st.session_state.cols))
+    for i in range(int(st.session_state.rows)):
+        with st.container():
+            row = []
+            for j in range(int(st.session_state.cols)):
+                element = cols[j].number_input(f"Element ({i + 1}, {j + 1}):", key=f"element_{i}_{j}",
+                                               value=matrix[i, j])
+                row.append(element)
+            updated_matrix[i] = row
+
+    display_matrix(updated_matrix)
+
+    st.session_state.matrix = updated_matrix
+
+    if st.button("Solve"):
+        # This function needs to solve the system and get the RREF of [A|b]
+        def solve_systems(matrix):
+            A = matrix[:, :-1]
+            b = matrix[:, -1]
+            rref_A = rref(A)
+            rref_A_b = np.hstack((rref_A, np.expand_dims(b, axis=1)))
+
+            particular_solution = np.linalg.lstsq(A, b, rcond=None)[0]
+            null_space = np.linalg.matrix_rank(A)
+            solution_description = express_variables(rref_A_b, zero_vector=False)
+
+            return null_space, particular_solution, True, rref_A_b, "\n".join(solution_description)
+
+
+        null_space, particular_solution, has_solution, rref_matrix, solution_description = solve_systems(
+            st.session_state.matrix)
+        st.session_state.null_space = null_space
+        st.session_state.particular_solution = particular_solution
+        st.session_state.has_solution = has_solution
+        st.session_state.rref_matrix = rref_matrix
+        st.session_state.solution_description = solution_description
         st.session_state.page = "solution"
 
 elif st.session_state.page == "solution":
     st.title("Solution and Visualization")
 
-    matrix = np.array(st.session_state.matrix)
-    num_rows, num_cols = matrix.shape
+    rref_matrix_A_b = st.session_state.rref_matrix
+    rref_matrix_A = rref(rref_matrix_A_b[:, :-1])
+    homogeneous_solution_A_0 = np.hstack((rref_matrix_A, np.zeros((rref_matrix_A.shape[0], 1))))
 
-    if num_cols < 2:
-        st.write("Cannot solve systems with less than 2 columns.")
-    else:
-        A = matrix[:, :-1]
-        b = matrix[:, -1]
-        augmented_matrix = np.hstack((A, b.reshape(-1, 1)))
+    st.write("Reduced Row Echelon Form (RREF) of [A|b]:")
+    display_matrix(rref_matrix_A_b)
 
-        rref_matrix = rref(augmented_matrix)
-        rref_A = rref(A)
-        rref_Ab = rref(augmented_matrix)
-        homogenous_solution = express_variables(rref_A, zero_vector=True)
-        non_homogenous_solution = express_variables(rref_Ab)
+    st.write("Reduced Row Echelon Form (RREF) of A:")
+    display_matrix(rref_matrix_A)
 
-        st.write("Reduced Row Echelon Form (RREF) of [A|b]:")
-        display_matrix(rref_Ab)
+    st.write("Homogeneous Solution [A|0]:")
+    display_matrix(homogeneous_solution_A_0)
 
-        st.write("Reduced Row Echelon Form (RREF) of A:")
-        display_matrix(rref_A)
+    st.write("Non-Homogeneous Solution [A|b]:")
+    st.write(st.session_state.solution_description)
 
-        st.write("Homogeneous Solution [A|0]:")
-        display_matrix(np.hstack((rref_A, np.zeros((rref_A.shape[0], 1)))))
-
-        st.write("Non-Homogeneous Solution [A|b]:")
-        st.write(non_homogenous_solution)
-
-        st.write("Graph of the Solution:")
-        plot_solution(rref_Ab)
+    st.write("Graph of the Solution:")
+    fig = plot_solution(rref_matrix_A_b)
+    if isinstance(fig, plt.Figure):
+        st.pyplot(fig)
 
     if st.button("Back to Input"):
         st.session_state.page = "input"
