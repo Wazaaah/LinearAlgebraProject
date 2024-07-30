@@ -187,6 +187,7 @@ if st.session_state.page == "home":
         the solutions for both homogeneous and non-homogeneous systems.
         """)
     st.write()
+    st.image("LinearAlgebraThumbnail.png", use_column_width=True)
     st.write("Click the button below to start solving!")
     if st.button("Next"):
         st.session_state.page = "input"
