@@ -60,111 +60,150 @@ def express_variables(rref_matrix, zero_vector=False):
         return ["The system is inconsistent"]
 
 
-def plot_solution(rref_matrix):
-    """Plot solutions for both homogeneous (Ax = 0) and non-homogeneous (Ax = b) systems."""
-    num_rows, num_cols = rref_matrix.shape
-    num_vars = num_cols - 1  # Last column is for constants
+def plot_solutions(rref_matrix, zero_vector=False):
+    num_rows, num_vars = rref_matrix.shape
 
-    if num_vars < 2 or num_vars > 3:
-        return "Cannot visualize systems with less than 2 or more than 3 variables."
+    if zero_vector:
+        rref_matrix[:, -1] = 0
 
-    fig = plt.figure(figsize=(12, 6))
+    if check_consistency(rref_matrix):
+        # Identify pivot columns
+        pivot_columns = []
+        for row in range(num_rows):
+            pivot_col = next((i for i in range(num_vars - 1) if rref_matrix[row, i] == 1), None)
+            if pivot_col is not None:
+                pivot_columns.append(pivot_col)
 
-    if num_vars == 2:
-        ax = fig.add_subplot(111)
-        plot_2d(ax, rref_matrix)
+        free_variables = [i for i in range(num_vars - 1) if i not in pivot_columns]
+
+        # Generate plot for the solutions
+        t = np.linspace(-10, 10, 100)
+
+        if num_vars - 1 == 3:
+            # 3D case: Plot a plane
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            if free_variables:
+                if zero_vector:
+                    # Homogeneous solution with free variables
+                    x2 = np.linspace(-10, 10, 10)
+                    x3 = np.linspace(-10, 10, 10)
+                    X2, X3 = np.meshgrid(x2, x3)
+                    X1 = np.zeros_like(X2)
+                    ax.plot_surface(X2, X3, X1, alpha=0.5, color='r')
+                else:
+                    # Inhomogeneous solution with free variables
+                    x2 = np.linspace(-10, 10, 10)
+                    x3 = np.linspace(-10, 10, 10)
+                    X2, X3 = np.meshgrid(x2, x3)
+                    X1 = 5.0 - 2.0*X2 - 3.0*X3
+                    ax.plot_surface(X2, X3, X1, alpha=0.5, color='b')
+
+                # Add legend after plotting
+                if zero_vector:
+                    # Create a dummy plot object for the legend
+                    p = ax.plot([], [], [], color='r', label='Homogeneous Solution')[0]
+                    ax.legend(handles=[p])  # Pass a list of handles
+                else:
+                    # Create a dummy plot object for the legend
+                    p = ax.plot([], [], [], color='b', label='Inhomogeneous Solution with free variables')[0]
+                    ax.legend(handles=[p])  # Pass a list of handles
+
+            else:
+                if zero_vector:
+                    # Homogeneous solution at the origin
+                    ax.scatter(0, 0, 0, color='r')
+                else:
+                    # Inhomogeneous single point solution
+                    particular_solution = rref_matrix[:, -1]
+                    ax.scatter(particular_solution[0], particular_solution[1], particular_solution[2], color='b')
+
+            ax.set_xlabel('x2')
+            ax.set_ylabel('x3')
+            ax.set_zlabel('x1')
+            plt.show()
     else:
-        ax = fig.add_subplot(111, projection='3d')
-        plot_3d(ax, rref_matrix)
+        print("The system is inconsistent")
 
-    from matplotlib.lines import Line2D
-    custom_lines = [Line2D([0], [0], color='blue', lw=2),
-                    Line2D([0], [0], color='red', lw=2),
-                    Line2D([0], [0], color='green', marker='o', linestyle='None')]
-    ax.legend(custom_lines, ['Ax = 0', 'Ax = b', 'Particular Solution'])
+# def plot_2d(ax, rref_matrix):
+#     x = np.linspace(-10, 10, 100)
 
-    return fig
+#     rank = np.linalg.matrix_rank(rref_matrix[:, :-1])
+#     num_vars = rref_matrix.shape[1] - 1
+#     num_free_vars = num_vars - rank
 
+#     if num_free_vars > 0:
+#         # Plot homogeneous solution (Ax = 0)
+#         a, b = rref_matrix[0, :2]
+#         if b != 0:
+#             y = (-a * x) / b
+#             ax.plot(x, y, color='blue', alpha=0.7)
+#         elif a != 0:
+#             ax.axvline(x=0, color='blue', alpha=0.7)
 
-def plot_2d(ax, rref_matrix):
-    x = np.linspace(-10, 10, 100)
+#         # Plot non-homogeneous solution (Ax = b)
+#         c = rref_matrix[0, -1]
+#         if b != 0:
+#             y = (c - a * x) / b
+#             ax.plot(x, y, color='red', alpha=0.7)
+#         elif a != 0:
+#             ax.axvline(x=c / a, color='red', alpha=0.7)
 
-    rank = np.linalg.matrix_rank(rref_matrix[:, :-1])
-    num_vars = rref_matrix.shape[1] - 1
-    num_free_vars = num_vars - rank
+#     # Plot particular solution if it exists
+#     if num_free_vars == 0:
+#         particular_solution = np.linalg.lstsq(rref_matrix[:, :-1], rref_matrix[:, -1], rcond=None)[0]
+#         ax.plot(particular_solution[0], particular_solution[1], 'go', markersize=10)
 
-    if num_free_vars > 0:
-        # Plot homogeneous solution (Ax = 0)
-        a, b = rref_matrix[0, :2]
-        if b != 0:
-            y = (-a * x) / b
-            ax.plot(x, y, color='blue', alpha=0.7)
-        elif a != 0:
-            ax.axvline(x=0, color='blue', alpha=0.7)
-
-        # Plot non-homogeneous solution (Ax = b)
-        c = rref_matrix[0, -1]
-        if b != 0:
-            y = (c - a * x) / b
-            ax.plot(x, y, color='red', alpha=0.7)
-        elif a != 0:
-            ax.axvline(x=c / a, color='red', alpha=0.7)
-
-    # Plot particular solution if it exists
-    if num_free_vars == 0:
-        particular_solution = np.linalg.lstsq(rref_matrix[:, :-1], rref_matrix[:, -1], rcond=None)[0]
-        ax.plot(particular_solution[0], particular_solution[1], 'go', markersize=10)
-
-    ax.set_xlabel('x1')
-    ax.set_ylabel('x2')
-    ax.set_title('Solution Sets: Ax = 0 (blue) and Ax = b (red)')
-    ax.grid(True)
+#     ax.set_xlabel('x1')
+#     ax.set_ylabel('x2')
+#     ax.set_title('Solution Sets: Ax = 0 (blue) and Ax = b (red)')
+#     ax.grid(True)
 
 
-def plot_3d(ax, rref_matrix):
-    x = y = np.linspace(-10, 10, 100)
-    X, Y = np.meshgrid(x, y)
+# def plot_3d(ax, rref_matrix):
+#     x = y = np.linspace(-10, 10, 100)
+#     X, Y = np.meshgrid(x, y)
 
-    rank = np.linalg.matrix_rank(rref_matrix[:, :-1])
-    num_vars = rref_matrix.shape[1] - 1
-    num_free_vars = num_vars - rank
+#     rank = np.linalg.matrix_rank(rref_matrix[:, :-1])
+#     num_vars = rref_matrix.shape[1] - 1
+#     num_free_vars = num_vars - rank
 
-    if num_free_vars > 0:
-        # Plot planes based on the number of free variables
-        for i in range(min(2, rank)):  # Plot at most 2 planes
-            coefs = rref_matrix[i, :-1]
-            d = rref_matrix[i, -1]
+#     if num_free_vars > 0:
+#         # Plot planes based on the number of free variables
+#         for i in range(min(2, rank)):  # Plot at most 2 planes
+#             coefs = rref_matrix[i, :-1]
+#             d = rref_matrix[i, -1]
 
-            # Plot homogeneous solution (Ax = 0)
-            if coefs[2] != 0:
-                Z = (-coefs[0] * X - coefs[1] * Y) / coefs[2]
-                ax.plot_surface(X, Y, Z, alpha=0.3, color='blue')
-            elif coefs[1] != 0:
-                Y_plane = (-coefs[0] * X) / coefs[1]
-                ax.plot_surface(X, Y_plane, y[:, np.newaxis], alpha=0.3, color='blue')
-            elif coefs[0] != 0:
-                ax.plot_surface(np.zeros_like(X), Y, X, alpha=0.3, color='blue')
+#             # Plot homogeneous solution (Ax = 0)
+#             if coefs[2] != 0:
+#                 Z = (-coefs[0] * X - coefs[1] * Y) / coefs[2]
+#                 ax.plot_surface(X, Y, Z, alpha=0.3, color='blue')
+#             elif coefs[1] != 0:
+#                 Y_plane = (-coefs[0] * X) / coefs[1]
+#                 ax.plot_surface(X, Y_plane, y[:, np.newaxis], alpha=0.3, color='blue')
+#             elif coefs[0] != 0:
+#                 ax.plot_surface(np.zeros_like(X), Y, X, alpha=0.3, color='blue')
 
-            # Plot non-homogeneous solution (Ax = b)
-            if coefs[2] != 0:
-                Z = (d - coefs[0] * X - coefs[1] * Y) / coefs[2]
-                ax.plot_surface(X, Y, Z, alpha=0.5, color='red')
-            elif coefs[1] != 0:
-                Y_plane = (d - coefs[0] * X) / coefs[1]
-                ax.plot_surface(X, Y_plane, y[:, np.newaxis], alpha=0.5, color='red')
-            elif coefs[0] != 0:
-                X_plane = d / coefs[0]
-                ax.plot_surface(np.full_like(X, X_plane), Y, X, alpha=0.5, color='red')
+#             # Plot non-homogeneous solution (Ax = b)
+#             if coefs[2] != 0:
+#                 Z = (d - coefs[0] * X - coefs[1] * Y) / coefs[2]
+#                 ax.plot_surface(X, Y, Z, alpha=0.5, color='red')
+#             elif coefs[1] != 0:
+#                 Y_plane = (d - coefs[0] * X) / coefs[1]
+#                 ax.plot_surface(X, Y_plane, y[:, np.newaxis], alpha=0.5, color='red')
+#             elif coefs[0] != 0:
+#                 X_plane = d / coefs[0]
+#                 ax.plot_surface(np.full_like(X, X_plane), Y, X, alpha=0.5, color='red')
 
-    # Plot particular solution if it exists
-    if num_free_vars == 0:
-        particular_solution = np.linalg.lstsq(rref_matrix[:, :-1], rref_matrix[:, -1], rcond=None)[0]
-        ax.plot([particular_solution[0]], [particular_solution[1]], [particular_solution[2]], 'go', markersize=10)
+#     # Plot particular solution if it exists
+#     if num_free_vars == 0:
+#         particular_solution = np.linalg.lstsq(rref_matrix[:, :-1], rref_matrix[:, -1], rcond=None)[0]
+#         ax.plot([particular_solution[0]], [particular_solution[1]], [particular_solution[2]], 'go', markersize=10)
 
-    ax.set_xlabel('x1')
-    ax.set_ylabel('x2')
-    ax.set_zlabel('x3')
-    ax.set_title('Solution Sets: Ax = 0 (blue) and Ax = b (red)')
+#     ax.set_xlabel('x1')
+#     ax.set_ylabel('x2')
+#     ax.set_zlabel('x3')
+#     ax.set_title('Solution Sets: Ax = 0 (blue) and Ax = b (red)')
 
 
 def display_matrix(matrix):
